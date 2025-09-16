@@ -179,7 +179,7 @@ function generateUpdateManifest(extensionId, version, crxFilename) {
 
 // Main execution
 if (require.main === module) {
-  const extensionName = process.argv[2] || 'todomvc-crx';
+  const extensionName = process.argv[2] || 'nativerelay-crx';
 
   console.log(`Building CRX package for ${extensionName}...`);
 

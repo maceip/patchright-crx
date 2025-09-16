@@ -1,5 +1,6 @@
 {
-  "name": "Playwright CRX - TodoMVC",
+  "name": "Patchright CRX API",
+  "description": "High-performance browser automation API for external applications",
   "version": "0.15.0",
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8x4E6rv849/Iya3yhoGsFUo87I82tP1vsohlkLSrY1Bednw2tFvk0+dVO1zkoEnczTctUxyy+y/2LNG6yw4uzHrPgD7SFljsN+HOXo7r9AwOO1oJKdWCBm02yfoevQ72pc4AhpFDnfuOmuz3vmpKyBratNBO6CjBHeSJLIPVQepg+cL6gSmQxHpIM1XtBI8kNZxMwUJhZKJ89wpefhpxyc6e7PSing2wWHqixilXmbmYiDGFxe/9kW3zGYxF57RkpFpeaNfINnoEV6YXI0cZHt6pp4VbZsDZqTK8+sRUsPn5iicSof8hvjPNpK52uNuqPBnu2ih/AWoeODArOxKIRwIDAQAB",
@@ -7,8 +8,22 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "action": {
-    "default_title": "Playwright CRX - TodoMVC"
+  "permissions": ["debugger", "tabs", "nativeMessaging"],
+  "externally_connectable": {
+    "matches": ["<all_urls>"],
+    "ids": ["*"]
   },
-  "permissions": ["debugger", "tabs"]
+  "web_accessible_resources": [
+    {
+      "resources": ["api.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+      "16": "logo-16.png",
+      "32": "logo-32.png",
+      "34": "logo-34.png",
+      "48": "logo-48.png",
+      "128": "logo-128.png"
+    }
 }

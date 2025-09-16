@@ -1,0 +1,9 @@
+{
+  "name": "com.playwright.crx.host",
+  "description": "Playwright CRX Native Messaging Host",
+  "path": "/Applications/Invader Zim.app/Contents/Resources/playwright-crx-host",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://knkcialnebkmaekkldmepcoidehocoje/"
+  ]
+}

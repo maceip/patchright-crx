@@ -1,0 +1,217 @@
+#!/usr/bin/env node
+
+/**
+ * Playwright CRX Native Messaging Host
+ *
+ * This script acts as a bridge between the Chrome extension and the Electron app.
+ * It communicates with the extension via stdin/stdout (native messaging protocol)
+ * and with the Electron app via WebSocket or IPC.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const WebSocket = require('ws');
+
+// Native messaging protocol functions
+function writeMessage(message) {
+  const buffer = Buffer.from(JSON.stringify(message), 'utf8');
+  const header = Buffer.alloc(4);
+  header.writeUInt32LE(buffer.length, 0);
+
+  process.stdout.write(header);
+  process.stdout.write(buffer);
+}
+
+function readMessage() {
+  return new Promise((resolve, reject) => {
+    const headerBuffer = Buffer.alloc(4);
+    let headerBytesRead = 0;
+
+    function readHeader() {
+      const chunk = process.stdin.read(4 - headerBytesRead);
+      if (chunk) {
+        chunk.copy(headerBuffer, headerBytesRead);
+        headerBytesRead += chunk.length;
+
+        if (headerBytesRead === 4) {
+          const messageLength = headerBuffer.readUInt32LE(0);
+          readBody(messageLength);
+        } else {
+          process.stdin.once('readable', readHeader);
+        }
+      } else {
+        process.stdin.once('readable', readHeader);
+      }
+    }
+
+    function readBody(length) {
+      const bodyBuffer = Buffer.alloc(length);
+      let bodyBytesRead = 0;
+
+      function readBodyChunk() {
+        const chunk = process.stdin.read(length - bodyBytesRead);
+        if (chunk) {
+          chunk.copy(bodyBuffer, bodyBytesRead);
+          bodyBytesRead += chunk.length;
+
+          if (bodyBytesRead === length) {
+            try {
+              const message = JSON.parse(bodyBuffer.toString('utf8'));
+              resolve(message);
+            } catch (error) {
+              reject(error);
+            }
+          } else {
+            process.stdin.once('readable', readBodyChunk);
+          }
+        } else {
+          process.stdin.once('readable', readBodyChunk);
+        }
+      }
+
+      readBodyChunk();
+    }
+
+    readHeader();
+  });
+}
+
+class NativeMessagingHost {
+  constructor() {
+    this.ws = null;
+    this.electronAppPort = 9876; // Port for communicating with Electron app
+    this.pendingRequests = new Map();
+    this.messageId = 0;
+
+    this.log('Native messaging host starting...');
+    this.connectToElectronApp();
+    this.startMessageLoop();
+  }
+
+  log(message) {
+    // Log to a file since stdout is used for messaging
+    const logFile = path.join(require('os').tmpdir(), 'playwright-crx-host.log');
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
+  }
+
+  async connectToElectronApp() {
+    try {
+      this.ws = new WebSocket(`ws://localhost:${this.electronAppPort}`);
+
+      this.ws.on('open', () => {
+        this.log('Connected to Electron app');
+      });
+
+      this.ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleElectronMessage(message);
+        } catch (error) {
+          this.log(`Error parsing message from Electron: ${error.message}`);
+        }
+      });
+
+      this.ws.on('close', () => {
+        this.log('Disconnected from Electron app');
+        // Try to reconnect after a delay
+        setTimeout(() => this.connectToElectronApp(), 5000);
+      });
+
+      this.ws.on('error', (error) => {
+        this.log(`WebSocket error: ${error.message}`);
+      });
+
+    } catch (error) {
+      this.log(`Failed to connect to Electron app: ${error.message}`);
+      // Try again after delay
+      setTimeout(() => this.connectToElectronApp(), 5000);
+    }
+  }
+
+  async startMessageLoop() {
+    try {
+      while (true) {
+        const message = await readMessage();
+        this.log(`Received message from extension: ${JSON.stringify(message)}`);
+
+        // Forward message to Electron app
+        await this.forwardToElectronApp(message);
+      }
+    } catch (error) {
+      this.log(`Message loop error: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  async forwardToElectronApp(message) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      // Send error response back to extension
+      writeMessage({
+        id: message.id,
+        error: 'Electron app not connected'
+      });
+      return;
+    }
+
+    try {
+      // Add unique ID for tracking
+      const requestId = `req_${++this.messageId}`;
+      message.requestId = requestId;
+
+      // Store original message ID for response mapping
+      this.pendingRequests.set(requestId, message.id);
+
+      // Send to Electron app
+      this.ws.send(JSON.stringify(message));
+
+      // Set timeout for cleanup
+      setTimeout(() => {
+        if (this.pendingRequests.has(requestId)) {
+          this.pendingRequests.delete(requestId);
+          writeMessage({
+            id: message.id,
+            error: 'Request timeout'
+          });
+        }
+      }, 30000);
+
+    } catch (error) {
+      this.log(`Error forwarding to Electron: ${error.message}`);
+      writeMessage({
+        id: message.id,
+        error: error.message
+      });
+    }
+  }
+
+  handleElectronMessage(message) {
+    if (message.requestId && this.pendingRequests.has(message.requestId)) {
+      // This is a response to a previous request
+      const originalMessageId = this.pendingRequests.get(message.requestId);
+      this.pendingRequests.delete(message.requestId);
+
+      // Send response back to extension
+      writeMessage({
+        id: originalMessageId,
+        result: message.result,
+        error: message.error
+      });
+    } else {
+      // This is an unsolicited message from Electron app
+      this.log(`Unsolicited message from Electron: ${JSON.stringify(message)}`);
+    }
+  }
+}
+
+// Handle cleanup
+process.on('SIGTERM', () => {
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  process.exit(0);
+});
+
+// Start the host
+new NativeMessagingHost();

@@ -1,5 +1,5 @@
 {
-  "name": "playwright-crx",
+  "name": "patchright-crx",
   "version": "0.15.0",
   "engines": {
     "node": ">=18"
@@ -18,10 +18,10 @@
     "clean:pw:bundles": "rimraf -g ./playwright/packages/playwright-core/bundles/**/node_modules && rimraf -g ./playwright/packages/playwright/bundles/**/node_modules",
     "clean:pw": "npm run clean:pw:bundles && cd ./playwright && npm run clean",
     "generate:pw": "cd ./playwright && node ./utils/generate_injected.js",
-    "build:examples:todomvc": "npm run build --prefix ./examples/todomvc-crx",
+    "build:examples:nativerelay": "npm run build --prefix ./examples/nativerelay-crx",
     "build:examples:recorder": "npm run build --prefix ./examples/recorder-crx",
-    "build:examples": "npm run build:examples:todomvc && npm run build:examples:recorder",
-    "clean:examples": "rimraf ./examples/recorder-crx/dist && rimraf ./examples/todomvc-crx/dist",
+    "build:examples": "npm run build:examples:nativerelay && npm run build:examples:recorder",
+    "clean:examples": "rimraf ./examples/recorder-crx/dist && rimraf ./examples/nativerelay-crx/dist",
     "build:tests": "npm run build --prefix ./tests",
     "clean:tests": "rimraf ./tests/playwright-report && rimraf ./tests/test-results",
     "generate:crx": "node ./utils/generate_test_types.js",
@@ -34,7 +34,7 @@
     "build": "npm run lint && npm run ci:pw:bundles && npm run build:crx && npm run build:examples && npm run build:tests",
     "build:stealth": "npm run lint && npm run ci:pw:bundles && npm run build:crx:stealth && npm run build:examples && npm run build:tests",
     "package:crx": "node ./scripts/build-crx.js",
-    "package:crx:todomvc": "node ./scripts/build-crx.js todomvc-crx",
+    "package:crx:nativerelay": "node ./scripts/build-crx.js nativerelay-crx",
     "package:crx:recorder": "node ./scripts/build-crx.js recorder-crx",
     "clean": "npm run clean:pw && npm run clean:examples && npm run clean:tests && npm run clean:crx",
     "test:install": "cd ./tests && npx playwright install --with-deps chromium",
@@ -43,7 +43,7 @@
   },
   "workspaces": [
     "examples/recorder-crx",
-    "examples/todomvc-crx",
+    "examples/nativerelay-crx",
     "tests"
   ],
   "exports": {
