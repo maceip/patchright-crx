@@ -1,3 +1,5 @@
+// patchright - custom imports
+import { createPageBindingScript, deliverBindingResult, takeBindingHandle } from './pageBinding';
 /**
  * Copyright 2017 Google Inc. All rights reserved.
  * Modifications copyright (c) Microsoft Corporation.
@@ -318,30 +320,38 @@ export class Page extends SdkObject {
   }
 
   async exposeBinding(progress: Progress, name: string, needsHandle: boolean, playwrightBinding: frames.FunctionWithSource): Promise<PageBinding> {
-    if (this._pageBindings.has(name))
-      throw new Error(`Function "${name}" has been already registered`);
-    if (this.browserContext._pageBindings.has(name))
-      throw new Error(`Function "${name}" has been already registered in the browser context`);
-    await progress.race(this.browserContext.exposePlaywrightBindingIfNeeded());
-    const binding = new PageBinding(name, playwrightBinding, needsHandle);
-    this._pageBindings.set(name, binding);
-    try {
-      await progress.race(this.delegate.addInitScript(binding.initScript));
-      await progress.race(this.safeNonStallingEvaluateInAllFrames(binding.initScript.source, 'main'));
-      return binding;
-    } catch (error) {
-      this._pageBindings.delete(name);
-      throw error;
-    }
+
+                      // patchright - modified exposeBinding
+                      if (this._pageBindings.has(name))
+                        throw new Error(`Function "${name}" has been already registered`);
+                      if (this.browserContext._pageBindings.has(name))
+                        throw new Error(`Function "${name}" has been already registered in the browser context`);
+
+                      // Get existing logic
+                      await progress.race(this.browserContext.exposePlaywrightBindingIfNeeded());
+                      const binding = new PageBinding(name, playwrightBinding, needsHandle);
+                      this._pageBindings.set(name, binding);
+                      try {
+                        await progress.race(this.delegate.addInitScript(binding.initScript));
+                        await progress.race(this.safeNonStallingEvaluateInAllFrames(binding.initScript.source, 'main'));
+                        return binding;
+                      } catch (error) {
+                        this._pageBindings.delete(name);
+                        throw error;
+                      }
+                    
   }
 
   async removeExposedBindings(bindings: PageBinding[]) {
-    bindings = bindings.filter(binding => this._pageBindings.get(binding.name) === binding);
-    for (const binding of bindings)
-      this._pageBindings.delete(binding.name);
-    await this.delegate.removeInitScripts(bindings.map(binding => binding.initScript));
-    const cleanup = bindings.map(binding => `{ ${binding.cleanupScript} };\n`).join('');
-    await this.safeNonStallingEvaluateInAllFrames(cleanup, 'main');
+
+                      // patchright - modified removeExposedBindings
+                      bindings = bindings.filter(binding => this._pageBindings.get(binding.name) === binding);
+                      for (const binding of bindings)
+                        this._pageBindings.delete(binding.name);
+                      await this.delegate.removeInitScripts(bindings.map(binding => binding.initScript));
+                      const cleanup = bindings.map(binding => `{ ${binding.cleanupScript} };\n`).join('');
+                      await this.safeNonStallingEvaluateInAllFrames(cleanup, 'main');
+                    
   }
 
   async setExtraHTTPHeaders(progress: Progress, headers: types.HeadersArray) {
@@ -589,9 +599,12 @@ export class Page extends SdkObject {
   }
 
   async removeInitScripts(initScripts: InitScript[]) {
-    const set = new Set(initScripts);
-    this.initScripts = this.initScripts.filter(script => !set.has(script));
-    await this.delegate.removeInitScripts(initScripts);
+
+                      // patchright - modified removeInitScripts
+                      const set = new Set(initScripts);
+                      this.initScripts = this.initScripts.filter(script => !set.has(script));
+                      await this.delegate.removeInitScripts(initScripts);
+                    
   }
 
   needsRequestInterception(): boolean {

@@ -47,26 +47,16 @@ export const chromiumSwitches = (assistantMode?: boolean, channel?: string) => [
   '--disable-field-trial-config', // https://source.chromium.org/chromium/chromium/src/+/main:testing/variations/README.md
   '--disable-background-networking',
   '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-back-forward-cache', // Avoids surprises like main request not being intercepted during page.goBack().
-  '--disable-breakpad',
-  '--disable-client-side-phishing-detection',
-  '--disable-component-extensions-with-background-pages',
-  '--disable-component-update', // Avoids unneeded network activity after startup.
+  '--disable-backgrounding-occluded-windows', // Avoids surprises like main request not being intercepted during page.goBack().
+  '--disable-breakpad', // Avoids unneeded network activity after startup.
   '--no-default-browser-check',
-  '--disable-default-apps',
   '--disable-dev-shm-usage',
-  '--disable-extensions',
   '--disable-features=' + disabledFeatures(assistantMode).join(','),
   channel === 'chromium-tip-of-tree' ? '--enable-features=CDPScreenshotNewSurface' : '',
-  '--allow-pre-commit-input',
   '--disable-hang-monitor',
-  '--disable-ipc-flooding-protection',
-  '--disable-popup-blocking',
   '--disable-prompt-on-repost',
   '--disable-renderer-backgrounding',
   '--force-color-profile=srgb',
-  '--metrics-recording-only',
   '--no-first-run',
   '--password-store=basic',
   '--use-mock-keychain',
@@ -75,9 +65,8 @@ export const chromiumSwitches = (assistantMode?: boolean, channel?: string) => [
   '--export-tagged-pdf',
   // https://chromium-review.googlesource.com/c/chromium/src/+/4853540
   '--disable-search-engine-choice-screen',
-  // https://issues.chromium.org/41491762
-  '--unsafely-disable-devtools-self-xss-warnings',
   // Edge can potentially restart on Windows (msRelaunchNoCompatLayer) which looses its file descriptors (stdout/stderr) and CDP (3/4). Disable until fixed upstream.
   '--edge-skip-compat-layer-relaunch',
   assistantMode ? '' : '--enable-automation',
+  '--disable-blink-features=AutomationControlled'
 ].filter(Boolean);

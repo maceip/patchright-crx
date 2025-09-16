@@ -38,7 +38,12 @@ import { generateCode } from 'playwright-core/lib/server/codegen/language';
 import { languageSet } from 'playwright-core/lib/server/codegen/languages';
 import { deviceDescriptors } from 'playwright-core/lib/server/deviceDescriptors';
 import type { DeviceDescriptor } from 'playwright-core/lib/server/types';
-import { EmptyRecorderApp, RecorderApp } from 'playwright-core/lib/server/recorder/recorderApp';
+import { RecorderApp } from 'playwright-core/lib/server/recorder/recorderApp';
+
+// Stub implementation for EmptyRecorderApp which was removed in newer Playwright versions
+class EmptyRecorderApp {
+  async close() {}
+}
 import type { LanguageGeneratorOptions } from 'playwright-core/lib/server/codegen/types';
 
 const kTabIdSymbol = Symbol('kTabIdSymbol');

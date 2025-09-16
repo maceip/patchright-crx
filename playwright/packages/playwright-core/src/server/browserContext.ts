@@ -146,7 +146,7 @@ export abstract class BrowserContext extends SdkObject {
       `);
     }
     if (this._options.serviceWorkers === 'block')
-      await this.addInitScript(undefined, `\nif (navigator.serviceWorker) navigator.serviceWorker.register = async () => { console.warn('Service Worker registration blocked by Playwright'); };\n`);
+      await this.addInitScript(undefined, `navigator.serviceWorker.register = async () => { };`);
 
     if (this._options.permissions)
       await this.grantPermissions(this._options.permissions);
@@ -326,27 +326,19 @@ export abstract class BrowserContext extends SdkObject {
       if (page.getBinding(name))
         throw new Error(`Function "${name}" has been already registered in one of the pages`);
     }
-    await progress.race(this.exposePlaywrightBindingIfNeeded());
     const binding = new PageBinding(name, playwrightBinding, needsHandle);
     binding.forClient = forClient;
     this._pageBindings.set(name, binding);
-    try {
-      await progress.race(this.doAddInitScript(binding.initScript));
-      await progress.race(this.safeNonStallingEvaluateInAllFrames(binding.initScript.source, 'main'));
-      return binding;
-    } catch (error) {
-      this._pageBindings.delete(name);
-      throw error;
-    }
+    await this.doExposeBinding(binding);
   }
 
   async removeExposedBindings(bindings: PageBinding[]) {
-    bindings = bindings.filter(binding => this._pageBindings.get(binding.name) === binding);
-    for (const binding of bindings)
-      this._pageBindings.delete(binding.name);
-    await this.doRemoveInitScripts(bindings.map(binding => binding.initScript));
-    const cleanup = bindings.map(binding => `{ ${binding.cleanupScript} };\n`).join('');
-    await this.safeNonStallingEvaluateInAllFrames(cleanup, 'main');
+
+          for (const key of this._pageBindings.keys()) {
+            if (!key.startsWith('__pw')) this._pageBindings.delete(key);
+          }
+          await this.doRemoveExposedBindings();
+        
   }
 
   async grantPermissions(permissions: string[], origin?: string) {
@@ -463,9 +455,10 @@ export abstract class BrowserContext extends SdkObject {
   }
 
   async removeInitScripts(initScripts: InitScript[]) {
-    const set = new Set(initScripts);
-    this.initScripts = this.initScripts.filter(script => !set.has(script));
-    await this.doRemoveInitScripts(initScripts);
+
+          this.initScripts.splice(0, this.initScripts.length);
+          await this.doRemoveInitScripts();
+          
   }
 
   async addRequestInterceptor(progress: Progress, handler: network.RouteHandler): Promise<void> {

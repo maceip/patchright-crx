@@ -14,35 +14,44 @@
  * limitations under the License.
  */
 
-import { crx } from 'playwright-crx';
 import { createTodos } from './todos';
 
 chrome.action.onClicked.addListener(async ({ id: tabId }) => {
   await chrome.action.disable();
 
-  const crxApp = await crx.start({ slowMo: 500 });
-  const page = await crxApp.attach(tabId!).catch(() => crxApp.newPage());
-
   try {
-    await page.context().tracing.start({ screenshots: true, snapshots: true });
-    await createTodos(page);
-    await page.context().tracing.stop({ path: '/tmp/trace.zip' });
-    const data = crx.fs.readFileSync('/tmp/trace.zip');
+    // Dynamically importing playwright-crx...
+    const { crx } = await import('playwright-crx');
+    // Starting CRX...
+    const crxApp = await crx.start({ slowMo: 500 });
+    // CRX started successfully
+    const page = await crxApp.attach(tabId!).catch(() => crxApp.newPage());
 
-    const tracePage = await crxApp.newPage();
-    await tracePage.goto('https://trace.playwright.dev');
-    const [filechooser] = await Promise.all([
-      tracePage.waitForEvent('filechooser'),
-      tracePage.getByRole('button', { name: 'Select file(s)' }).click(),
-    ]);
-    await filechooser.setFiles({
-      name: 'trace.zip',
-      mimeType: 'application/zip',
-      buffer: Buffer.from(data),
-    });
-    await crxApp.detach(tracePage);
+    try {
+      await page.context().tracing.start({ screenshots: true, snapshots: true });
+      await createTodos(page);
+      await page.context().tracing.stop({ path: '/tmp/trace.zip' });
+      const data = crx.fs.readFileSync('/tmp/trace.zip');
+
+      const tracePage = await crxApp.newPage();
+      await tracePage.goto('https://trace.playwright.dev');
+      const [filechooser] = await Promise.all([
+        tracePage.waitForEvent('filechooser'),
+        tracePage.getByRole('button', { name: 'Select file(s)' }).click(),
+      ]);
+      await filechooser.setFiles({
+        name: 'trace.zip',
+        mimeType: 'application/zip',
+        buffer: Buffer.from(data),
+      });
+      await crxApp.detach(tracePage);
+    } finally {
+      await crxApp.close();
+    }
+  } catch (error) {
+    // CRX Error: ${error}
+    // Error stack: ${(error as Error).stack}
   } finally {
-    await crxApp.close();
     await chrome.action.enable();
   }
 });

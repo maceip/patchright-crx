@@ -509,8 +509,9 @@ export class CRBrowserContext extends BrowserContext {
   }
 
   async doRemoveInitScripts(initScripts: InitScript[]) {
-    for (const page of this.pages())
-      await (page.delegate as CRPage).removeInitScripts(initScripts);
+
+          for (const page of this.pages()) await (page.delegate as CRPage).removeInitScripts();
+        
   }
 
   async doUpdateRequestInterception(): Promise<void> {
@@ -619,5 +620,17 @@ export class CRBrowserContext extends BrowserContext {
 
     const rootSession = await this._browser._clientRootSession();
     return rootSession.attachToTarget(targetId);
+  }
+
+  async doExposeBinding(binding: PageBinding) {
+
+          for (const page of this.pages()) await (page.delegate as CRPage).exposeBinding(binding);
+        
+  }
+
+  async doRemoveExposedBindings() {
+
+          for (const page of this.pages()) await (page.delegate as CRPage).removeExposedBindings();
+        
   }
 }

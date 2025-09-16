@@ -67,7 +67,6 @@ export class CRDevTools {
       }).catch(e => null);
     });
     Promise.all([
-      session.send('Runtime.enable'),
       session.send('Runtime.addBinding', { name: kBindingName }),
       session.send('Page.enable'),
       session.send('Page.addScriptToEvaluateOnNewDocument', { source: `

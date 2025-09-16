@@ -29,34 +29,69 @@ import { wrapClientApis } from './client/crxZone';
 import { nodePlatform } from 'playwright-core/lib/utils';
 
 export { debug as _debug } from 'debug';
-export { setUnderTest as _setUnderTest, isUnderTest as _isUnderTest } from 'playwright-core/lib/utils';
+export { isUnderTest as _isUnderTest } from 'playwright-core/lib/utils';
+
+// setUnderTest was removed in newer Playwright versions - now controlled via PWTEST_UNDER_TEST env var
+export const _setUnderTest = (value: boolean) => {
+  process.env.PWTEST_UNDER_TEST = value ? '1' : '0';
+};
 
 // avoid conflicts with playwright when testing
 PageBinding.kBindingName = '__crx__binding__';
 
-const playwright = new CrxPlaywright();
+// Lazy initialization to avoid browser executable path issues during module loading
+let playwrightAPI: CrxPlaywrightAPI | null = null;
 
-const clientConnection = new CrxConnection(nodePlatform);
-const dispatcherConnection = new DispatcherConnection(true /* local */);
+function initializePlaywright() {
+  if (playwrightAPI)
+    return playwrightAPI;
 
-// Dispatch synchronously at first.
-dispatcherConnection.onmessage = message => clientConnection.dispatch(message);
-clientConnection.onmessage = message => dispatcherConnection.dispatch(message);
+  const playwright = new CrxPlaywright();
 
-const rootScope = new RootDispatcher(dispatcherConnection);
+  const clientConnection = new CrxConnection(nodePlatform);
+  const dispatcherConnection = new DispatcherConnection(true /* local */);
 
-// Initialize Playwright channel.
-new CrxPlaywrightDispatcher(rootScope, playwright);
-const playwrightAPI = clientConnection.getObjectWithKnownName('Playwright') as CrxPlaywrightAPI;
+  // Dispatch synchronously at first.
+  dispatcherConnection.onmessage = message => clientConnection.dispatch(message);
+  clientConnection.onmessage = message => dispatcherConnection.dispatch(message);
 
-// Switch to async dispatch after we got Playwright object.
-dispatcherConnection.onmessage = message => setImmediate(() => clientConnection.dispatch(message));
-clientConnection.onmessage = message => setImmediate(() => dispatcherConnection.dispatch(message));
+  const rootScope = new RootDispatcher(dispatcherConnection);
 
-clientConnection.toImpl = (x: any) => x ? dispatcherConnection._dispatcherByGuid.get(x._guid)!._object : dispatcherConnection._dispatcherByGuid.get('');
-(playwrightAPI as any)._toImpl = clientConnection.toImpl;
+  // Initialize Playwright channel.
+  new CrxPlaywrightDispatcher(rootScope, playwright);
+  playwrightAPI = clientConnection.getObjectWithKnownName('Playwright') as CrxPlaywrightAPI;
 
-export const { _crx: crx, selectors, errors } = playwrightAPI;
+  // Switch to async dispatch after we got Playwright object.
+  dispatcherConnection.onmessage = message => setImmediate(() => clientConnection.dispatch(message));
+  clientConnection.onmessage = message => setImmediate(() => dispatcherConnection.dispatch(message));
+
+  clientConnection.toImpl = (x: any) => x ? dispatcherConnection._dispatcherByGuid.get(x._guid)!._object : dispatcherConnection._dispatcherByGuid.get('');
+  (playwrightAPI as any)._toImpl = clientConnection.toImpl;
+
+  return playwrightAPI;
+}
+
+// Create a proxy object that initializes Playwright on first access
+export const crx = new Proxy({} as any, {
+  get(target, prop) {
+    const api = initializePlaywright();
+    return api._crx[prop];
+  }
+});
+
+export const selectors = new Proxy({} as any, {
+  get(target, prop) {
+    const api = initializePlaywright();
+    return api.selectors[prop];
+  }
+});
+
+export const errors = new Proxy({} as any, {
+  get(target, prop) {
+    const api = initializePlaywright();
+    return api.errors[prop];
+  }
+});
 export default playwrightAPI;
 
 wrapClientApis();

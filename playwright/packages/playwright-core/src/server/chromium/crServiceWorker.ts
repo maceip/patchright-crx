@@ -44,13 +44,23 @@ export class CRServiceWorker extends Worker {
       this.updateOffline();
       this._networkManager.addSession(session, undefined, true /* isMain */).catch(() => {});
     }
-
-    session.send('Runtime.enable', {}).catch(e => { });
     session.send('Runtime.runIfWaitingForDebugger').catch(e => { });
     session.on('Inspector.targetReloadedAfterCrash', () => {
       // Resume service worker after restart.
       session._sendMayFail('Runtime.runIfWaitingForDebugger', {});
     });
+
+          session._sendMayFail("Runtime.evaluate", {
+            expression: "globalThis",
+            serializationOptions: { serialization: "idOnly" }
+          }).then(globalThis => {
+            if (globalThis && globalThis.result) {
+              var globalThisObjId = globalThis.result.objectId;
+              var executionContextId = parseInt(globalThisObjId.split(".")[1], 10);
+              this.createExecutionContext(new import_crExecutionContext.CRExecutionContext(session, { id: executionContextId }));
+            }
+          });
+        
   }
 
   override didClose() {
