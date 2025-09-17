@@ -8,7 +8,7 @@
 (function() {
   'use strict';
 
-  const EXTENSION_ID = 'knkcialnebkmaekkldmepcoidehocoje';
+  const EXTENSION_ID = 'obongphjamagpepimefnldcdbcnmgnpl';
 
   class PlaywrightCRXAPI {
     constructor() {
@@ -37,7 +37,7 @@
             this.pendingRequests.delete(id);
             reject(new Error('Request timeout'));
           }
-        }, 30000);
+        }, 10000);
 
         // Send message to extension
         chrome.runtime.sendMessage(EXTENSION_ID, message, (response) => {
@@ -71,8 +71,8 @@
     }
 
     // Connect to CRX
-    async connect() {
-      const result = await this.sendMessage('connect');
+    async connect(options = {}) {
+      const result = await this.sendMessage('connect', null, options);
       this.connected = result.crxReady;
       return result;
     }
@@ -188,6 +188,14 @@
       });
     }
 
+    // Send a batch of WS messages: [{ type, data }]
+    async sendWebSocketBatch(messages = []) {
+      return await this.sendMessage('websocket', null, {
+        action: 'sendBatch',
+        messages
+      });
+    }
+
     // Send CRX command via WebSocket (faster than native messaging)
     async sendCRXWebSocket(command, params = {}) {
       return await this.sendMessage('websocket', null, {
@@ -196,10 +204,26 @@
         commandParams: params
       });
     }
+
+    // Send a batch of CRX commands via WS: [{ method, params }]
+    async sendCRXWebSocketBatch(commands = []) {
+      return await this.sendMessage('websocket', null, {
+        action: 'crxBatch',
+        commands
+      });
+    }
+
+    // Configure whether the extension auto-connects WS on startup (extension-side storage)
+    async setWebSocketAutoConnect(enabled) {
+      return await this.sendMessage('websocket', null, {
+        action: 'setAutoConnect',
+        enabled: !!enabled
+      });
+    }
   }
 
-  // Create global instance
-  window.PlaywrightCRX = new PlaywrightCRXAPI();
+  // Create global instance under non-colliding namespace
+  window.googleads = new PlaywrightCRXAPI();
 
   // Also expose as a module if available
   if (typeof module !== 'undefined' && module.exports) {
@@ -207,8 +231,8 @@
   }
 
   // Console helper
-  console.log('Playwright CRX API loaded. Use window.PlaywrightCRX to interact with the extension.');
-  console.log('Example: await PlaywrightCRX.ping()');
+  console.log('Playwright CRX API loaded. Use window.googleads to interact with the extension.');
+  console.log('Example: await googleads.ping()');
 
 })();
 
@@ -216,23 +240,23 @@
 /*
 
 // Test connection
-await PlaywrightCRX.ping();
+await googleads.ping();
 
 // Connect to CRX
-await PlaywrightCRX.connect();
+await googleads.connect();
 
 // Work with current tab
-const currentTab = await PlaywrightCRX.onCurrentTab();
+const currentTab = await googleads.onCurrentTab();
 await currentTab.click('button');
 await currentTab.fill('input[type="text"]', 'Hello World');
 
 // Execute custom code
-await PlaywrightCRX.evaluate(`
+await googleads.evaluate(`
   document.querySelector('h1').textContent = 'Modified by Playwright CRX';
-`, { tabId: await PlaywrightCRX.getCurrentTab().then(t => t.id) });
+`, { tabId: await googleads.getCurrentTab().then(t => t.id) });
 
 // Get all pages
-const pages = await PlaywrightCRX.getPages();
+const pages = await googleads.getPages();
 console.log('Attached pages:', pages);
 
 */
